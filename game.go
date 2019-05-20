@@ -8,6 +8,16 @@ import (
 
 var game mid.Game
 
+// Items
+var cloak mid.Item
+var hook mid.Item
+var message mid.Item
+
+func newItem(test string) mid.Item {
+	test2 := new(mid.Item)
+	return *test2
+}
+
 func init() {
 	game = mid.Game{
 		Title:  "Cloak of Darkness",
@@ -23,8 +33,63 @@ func init() {
 			"drop": drop,
 		},
 		Synonyms: map[string][]string{
-			"drop":  {"throw"},
-			"north": {"south"},
+			"drop": {"throw"},
+		},
+	}
+
+	mid.Rankings = []mid.Ranking{
+		{Score: 0, Rank: "Bloody Beginner"},
+		{Score: game.MaxScore / 2, Rank: "Amateur"},
+		{Score: game.MaxScore, Rank: "Master Adventurer"},
+	}
+
+	game.Items = map[*mid.Item]*mid.Item{
+		&cloak: {
+			Article:  "a", // What if we want to use "the" in other parts though? Hmmm...
+			Name:     "velvet cloak",
+			Synonyms: []string{"cloak", "dark", "black", "satin", "velvet"},
+			Description: `A handsome cloak, of velvet trimmed with satin, and slightly
+			spattered with raindrops. Its blackness is so deep that it
+			almost seems to suck light from the room.`,
+			Carryable: true,
+			Verbs: mid.ItemVerbs{
+				"drop": func(item *mid.Item, room *mid.Room) {
+					if game.Player.Location == "cloakroom" {
+						game.Player.AwardPoints(1)
+						game.Rooms["bar"].Lit = true
+					} else {
+						game.Output(`This isn't the best place to leave a smart cloak
+						lying around.`)
+						game.Player.PickupItem(game.Items[&cloak])
+						room.Items.Remove(game.Items[&cloak])
+					}
+				},
+				"take": func(item *mid.Item, room *mid.Room) {
+					game.Rooms["bar"].Lit = false
+				},
+			},
+		},
+		&hook: {
+			Article:     "a",
+			Name:        "small brass hook",
+			Synonyms:    []string{"small", "brass", "hook", "peg"},
+			Description: `It's just a small brass hook, screwed to the wall.`,
+			Fixture:     true,
+		},
+		&message: {
+			Article:  "a",
+			Name:     "scrawled message",
+			Synonyms: []string{"message", "floor", "sawdust"},
+			Verbs: mid.ItemVerbs{
+				"inspect": func(item *mid.Item, room *mid.Room) {
+					if !room.Lit {
+						game.Output(`In the dark? You could easily disturb something!`)
+					} else {
+						game.Player.AwardPoints(1)
+						game.Output(`The message, neatly marked in the sawdust, reads...`)
+					}
+				},
+			},
 		},
 	}
 
@@ -33,6 +98,9 @@ func init() {
 		Description: "Just an average individual.",
 		Location:    "foyer",
 		Score:       0,
+		Inventory: mid.Items{
+			game.Items[&cloak],
+		},
 	}
 
 	game.Rooms = map[string]*mid.Room{
@@ -50,6 +118,8 @@ func init() {
 			Directions: mid.Directions{
 				West:  "cloakroom",
 				South: "bar",
+				North: `You've only just arrived, and besides, the weather outside
+				seems to be getting worse.`,
 			},
 		},
 		"cloakroom": {
@@ -60,6 +130,9 @@ func init() {
 			Directions: mid.Directions{
 				East: "foyer",
 			},
+			Items: mid.Items{
+				game.Items[&hook],
+			},
 		},
 		"bar": {
 			Name: "Foyer Bar",
@@ -69,17 +142,18 @@ func init() {
 			Directions: mid.Directions{
 				North: "foyer",
 			},
+			OnEnter: func(r *mid.Room) {
+				if r.Lit {
+					fmt.Println("Room is lit")
+				}
+			},
+			Items: mid.Items{
+				game.Items[&message],
+			},
 		},
 	}
 }
 
-// b, err := json.Marshal(g)
-// if err != nil {
-// 	fmt.Println(err)
-// 	return
-// }
-// fmt.Println(string(b))
-
 func drop(args ...string) {
-	fmt.Println("Dropped something")
+	fmt.Println("You dropped something")
 }
